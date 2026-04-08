@@ -8,7 +8,7 @@ import GeneratingScreen from './src/screens/GeneratingScreen';
 import TodayScreen from './src/screens/TodayScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
-import { loadPlan, loadAuth, saveAuth, clearAuth } from './src/storage/planStorage';
+import { loadPlan, loadAuth, saveAuth, clearAuth, loadCredits } from './src/storage/planStorage';
 import type { TrainingPlan, UserProfile, ConversationMessage } from './src/types/plan';
 
 type Screen = 'loading' | 'auth' | 'onboarding' | 'generating' | 'main';
@@ -127,7 +127,7 @@ export default function App() {
         {tab === 'today' && <TodayScreen plan={plan} token={token} />}
         {tab === 'plan' && <PlanScreen plan={plan} token={token} />}
         {tab === 'progress' && <ProgressScreen />}
-        {tab === 'profile' && <ProfileTab user={user} onSignOut={handleSignOut} />}
+        {tab === 'profile' && <ProfileTab user={user} token={token} onSignOut={handleSignOut} />}
       </View>
       <View style={s.tabBar}>
         {tabs.map(t => (
@@ -143,11 +143,24 @@ export default function App() {
 
 function ProfileTab({
   user,
+  token,
   onSignOut,
 }: {
   user: { id: string; name: string; email: string } | null;
+  token: string;
   onSignOut: () => void;
 }) {
+  const [credits, setCredits] = useState<{ credits: number; creditsUsed: number } | null>(null);
+
+  useEffect(() => {
+    if (token) {
+      loadCredits(token).then(setCredits);
+    }
+  }, [token]);
+
+  const creditPct = credits ? Math.min(100, (credits.credits / 5) * 100) : 100;
+  const barColor = creditPct > 40 ? '#22c55e' : creditPct > 15 ? '#f59e0b' : '#ef4444';
+
   return (
     <View style={p.container}>
       {/* Avatar */}
@@ -156,6 +169,22 @@ function ProfileTab({
       </View>
       <Text style={p.name}>{user?.name}</Text>
       <Text style={p.email}>{user?.email}</Text>
+
+      {/* Credits */}
+      <View style={p.creditsCard}>
+        <View style={p.creditsRow}>
+          <Text style={p.creditsLabel}>AI Credits</Text>
+          <Text style={p.creditsValue}>
+            {credits ? `$${credits.credits.toFixed(2)} remaining` : '…'}
+          </Text>
+        </View>
+        <View style={p.barBg}>
+          <View style={[p.barFill, { width: `${creditPct}%` as any, backgroundColor: barColor }]} />
+        </View>
+        <Text style={p.creditsHint}>
+          {credits ? `$${credits.creditsUsed.toFixed(4)} used of $5.00 free credit` : ''}
+        </Text>
+      </View>
 
       {/* Sign out */}
       <TouchableOpacity style={p.signOutBtn} onPress={onSignOut}>
@@ -173,7 +202,17 @@ const p = StyleSheet.create({
   },
   avatarText: { color: colors.bg, fontSize: 32, fontWeight: '800' },
   name: { color: colors.text, fontSize: 22, fontWeight: '700', marginBottom: 4 },
-  email: { color: colors.muted, fontSize: 14, marginBottom: 48 },
+  email: { color: colors.muted, fontSize: 14, marginBottom: 32 },
+  creditsCard: {
+    width: '100%', backgroundColor: colors.card ?? '#1a1a1a',
+    borderRadius: 16, padding: 20, marginBottom: 32, borderWidth: 1, borderColor: colors.border,
+  },
+  creditsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  creditsLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  creditsValue: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  barBg: { height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden', marginBottom: 8 },
+  barFill: { height: '100%', borderRadius: 3 },
+  creditsHint: { color: colors.muted, fontSize: 12 },
   signOutBtn: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 14,
     paddingVertical: 14, paddingHorizontal: 48,

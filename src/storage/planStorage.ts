@@ -51,6 +51,16 @@ export async function loadProgress(token: string): Promise<PlanProgress | null> 
   }
 }
 
+export async function loadCredits(token: string): Promise<{ credits: number; creditsUsed: number } | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/credits`, { headers: authHeaders(token) });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function markDayComplete(token: string, weekNumber: number, dayOfWeek: string): Promise<void> {
   const dayKey = `w${weekNumber}-${dayOfWeek}`;
   await fetch(`${API_URL}/api/progress/complete`, {
