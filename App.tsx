@@ -8,18 +8,20 @@ import GeneratingScreen from './src/screens/GeneratingScreen';
 import ModifyPlanScreen from './src/screens/ModifyPlanScreen';
 import TodayScreen from './src/screens/TodayScreen';
 import PlanScreen from './src/screens/PlanScreen';
+import NutritionScreen from './src/screens/NutritionScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import { loadPlan, loadAuth, saveAuth, clearAuth, loadCredits } from './src/storage/planStorage';
 import type { TrainingPlan, UserProfile, ConversationMessage } from './src/types/plan';
 
 type Screen = 'loading' | 'auth' | 'onboarding' | 'generating' | 'modifying' | 'main';
-type Tab = 'today' | 'plan' | 'progress' | 'profile';
+type Tab = 'today' | 'plan' | 'nutrition' | 'progress' | 'profile';
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'today', label: 'Today', icon: '⚡' },
-  { id: 'plan', label: 'Plan', icon: '📋' },
-  { id: 'progress', label: 'Progress', icon: '📈' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
+  { id: 'today',     label: 'Today',     icon: '⚡' },
+  { id: 'plan',      label: 'Plan',      icon: '📋' },
+  { id: 'nutrition', label: 'Nutrition', icon: '🥗' },
+  { id: 'progress',  label: 'Progress',  icon: '📈' },
+  { id: 'profile',   label: 'Profile',   icon: '👤' },
 ];
 
 export default function App() {
@@ -148,10 +150,11 @@ export default function App() {
     <SafeAreaView style={s.safe}>
       <StatusBar style="light" />
       <View style={s.content}>
-        {tab === 'today' && <TodayScreen plan={plan} token={token} />}
-        {tab === 'plan' && <PlanScreen plan={plan} token={token} onModify={handleModify} />}
-        {tab === 'progress' && <ProgressScreen />}
-        {tab === 'profile' && <ProfileTab user={user} token={token} onSignOut={handleSignOut} />}
+        {tab === 'today'     && <TodayScreen plan={plan} token={token} />}
+        {tab === 'plan'      && <PlanScreen plan={plan} token={token} onModify={handleModify} />}
+        {tab === 'nutrition' && <NutritionScreen plan={plan} />}
+        {tab === 'progress'  && <ProgressScreen />}
+        {tab === 'profile'   && <ProfileTab user={user} token={token} onSignOut={handleSignOut} />}
       </View>
       <View style={s.tabBar}>
         {tabs.map(t => (

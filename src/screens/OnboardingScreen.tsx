@@ -56,7 +56,7 @@ export default function OnboardingScreen({
     if (newTurn === 1) updatedProfile.athleteIdentity = userText;
     if (newTurn === 2) updatedProfile.schedule = userText;
     if (newTurn === 3) updatedProfile.injuries = userText;
-    if (newTurn === 4) updatedProfile.nutrition = userText;
+    if (newTurn === 4) { updatedProfile.nutrition = userText; updatedProfile.diet = userText; }
     setProfile(updatedProfile);
 
     const aiId = (Date.now() + 1).toString();

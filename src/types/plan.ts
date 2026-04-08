@@ -23,6 +23,23 @@ export interface TrainingWeek {
   days: TrainingDay[];
 }
 
+export interface MealOption {
+  name: string;
+  timing: string;
+  calories: number;
+  proteinG: number;
+  options: string[];
+}
+
+export interface MealPlan {
+  dailyCalories: number;
+  dietaryPattern: string;
+  macros: { proteinG: number; carbsG: number; fatG: number };
+  meals: MealOption[];
+  guidelines: string[];
+  avoidList: string[];
+}
+
 export interface TrainingPlan {
   planName: string;
   goal: string;
@@ -31,6 +48,7 @@ export interface TrainingPlan {
   generatedAt: string;
   programSummary: string;
   weeks: TrainingWeek[];
+  mealPlan?: MealPlan;
 }
 
 export interface PlanProgress {
@@ -44,6 +62,9 @@ export interface UserProfile {
   schedule?: string;
   injuries?: string;
   nutrition?: string;
+  diet?: string;
+  planContext?: string;
+  modifications?: string;
 }
 
 export interface ConversationMessage {
