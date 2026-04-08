@@ -5,13 +5,14 @@ import { colors } from './src/theme';
 import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import GeneratingScreen from './src/screens/GeneratingScreen';
+import ModifyPlanScreen from './src/screens/ModifyPlanScreen';
 import TodayScreen from './src/screens/TodayScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import { loadPlan, loadAuth, saveAuth, clearAuth, loadCredits } from './src/storage/planStorage';
 import type { TrainingPlan, UserProfile, ConversationMessage } from './src/types/plan';
 
-type Screen = 'loading' | 'auth' | 'onboarding' | 'generating' | 'main';
+type Screen = 'loading' | 'auth' | 'onboarding' | 'generating' | 'modifying' | 'main';
 type Tab = 'today' | 'plan' | 'progress' | 'profile';
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
@@ -75,6 +76,15 @@ export default function App() {
   const handlePlanGenerated = (generatedPlan: TrainingPlan) => {
     setPlan(generatedPlan);
     setScreen('main');
+    setTab('today');
+  };
+
+  const handleModify = () => setScreen('modifying');
+
+  const handleModifyComplete = (profile: UserProfile, history: ConversationMessage[]) => {
+    setUserProfile(profile);
+    setConversationHistory(history);
+    setScreen('generating');
   };
 
   const handleSignOut = async () => {
@@ -120,12 +130,26 @@ export default function App() {
     );
   }
 
+  if (screen === 'modifying' && plan) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <ModifyPlanScreen
+          token={token}
+          plan={plan}
+          onComplete={handleModifyComplete}
+          onCancel={() => setScreen('main')}
+        />
+      </>
+    );
+  }
+
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar style="light" />
       <View style={s.content}>
         {tab === 'today' && <TodayScreen plan={plan} token={token} />}
-        {tab === 'plan' && <PlanScreen plan={plan} token={token} />}
+        {tab === 'plan' && <PlanScreen plan={plan} token={token} onModify={handleModify} />}
         {tab === 'progress' && <ProgressScreen />}
         {tab === 'profile' && <ProfileTab user={user} token={token} onSignOut={handleSignOut} />}
       </View>

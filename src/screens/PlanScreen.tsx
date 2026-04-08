@@ -8,6 +8,7 @@ import type { TrainingPlan, PlanProgress, TrainingDay } from '../types/plan';
 interface Props {
   plan: TrainingPlan | null;
   token: string;
+  onModify: () => void;
 }
 
 const TYPE_COLOR: Record<TrainingDay['type'], string> = {
@@ -18,7 +19,7 @@ const TYPE_COLOR: Record<TrainingDay['type'], string> = {
   rest: colors.border,
 };
 
-export default function PlanScreen({ plan, token }: Props) {
+export default function PlanScreen({ plan, token, onModify }: Props) {
   const [progress, setProgress] = useState<PlanProgress | null>(null);
   const [expanded, setExpanded] = useState<number>(1);
 
@@ -53,8 +54,15 @@ export default function PlanScreen({ plan, token }: Props) {
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
-      <Text style={s.title}>{plan.planName}</Text>
-      <Text style={s.goal}>{plan.goal}</Text>
+      <View style={s.titleRow}>
+        <View style={s.titleBlock}>
+          <Text style={s.title}>{plan.planName}</Text>
+          <Text style={s.goal}>{plan.goal}</Text>
+        </View>
+        <TouchableOpacity style={s.modifyBtn} onPress={onModify}>
+          <Text style={s.modifyBtnText}>✏️ Modify</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Program summary */}
       <View style={s.summaryCard}>
@@ -127,8 +135,15 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  titleBlock: { flex: 1 },
   title: { color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 2 },
   goal: { color: colors.muted, fontSize: 13, marginBottom: 4 },
+  modifyBtn: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12, marginTop: 2,
+  },
+  modifyBtnText: { color: colors.text, fontSize: 13, fontWeight: '600' },
   summaryCard: {
     backgroundColor: '#1A1F0D', borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: '#2A3A10',
