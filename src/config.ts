@@ -1,4 +1,4 @@
-export const API_URL = 'https://responsible-quietude-production-4896.up.railway.app';
+export const API_URL = 'http://3.134.116.103:8000';
 
 export function authHeaders(token: string) {
   return {
