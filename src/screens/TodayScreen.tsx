@@ -3,7 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { colors } from '../theme';
 import { getTodayWorkout, getTodayLabel } from '../utils/planUtils';
 import { loadProgress, markDayComplete } from '../storage/planStorage';
-import type { TrainingPlan, PlanProgress, Exercise } from '../types/plan';
+import { getMostRecentWorkout } from '../services/healthService';
+import type { TrainingPlan, PlanProgress, Exercise, WorkoutData } from '../types/plan';
 
 interface Props {
   plan: TrainingPlan | null;
@@ -14,6 +15,8 @@ export default function TodayScreen({ plan, token }: Props) {
   const [progress, setProgress] = useState<PlanProgress | null>(null);
   const [checkedExercises, setCheckedExercises] = useState<Set<number>>(new Set());
   const [workoutDone, setWorkoutDone] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [completedWorkoutData, setCompletedWorkoutData] = useState<WorkoutData | null>(null);
 
   useEffect(() => {
     loadProgress(token).then(setProgress);
@@ -40,6 +43,7 @@ export default function TodayScreen({ plan, token }: Props) {
   const { week, day } = todayData;
   const dayKey = `w${week}-${day.dayOfWeek}`;
   const alreadyComplete = progress.completedDays.includes(dayKey) || workoutDone;
+  const savedWorkoutData = progress.workoutData?.[dayKey] ?? completedWorkoutData;
   const isRestDay = day.type === 'rest' || day.type === 'mobility';
 
   const toggleExercise = (index: number) => {
@@ -51,8 +55,16 @@ export default function TodayScreen({ plan, token }: Props) {
   };
 
   const completeWorkout = async () => {
-    await markDayComplete(token, week, day.dayOfWeek);
-    setWorkoutDone(true);
+    setCompleting(true);
+    try {
+      // Silently pull Apple Watch data — no error shown if unavailable
+      const healthData = await getMostRecentWorkout();
+      await markDayComplete(token, week, day.dayOfWeek, healthData ?? undefined);
+      if (healthData) setCompletedWorkoutData(healthData);
+      setWorkoutDone(true);
+    } finally {
+      setCompleting(false);
+    }
   };
 
   const pct = day.exercises.length > 0
@@ -115,17 +127,45 @@ export default function TodayScreen({ plan, token }: Props) {
 
       {/* Complete button */}
       {!isRestDay && !alreadyComplete && (
-        <TouchableOpacity style={s.completeBtn} onPress={completeWorkout}>
-          <Text style={s.completeBtnText}>Mark Workout Complete</Text>
+        <TouchableOpacity style={[s.completeBtn, completing && s.btnDisabled]} onPress={completeWorkout} disabled={completing}>
+          {completing
+            ? <ActivityIndicator color={colors.bg} />
+            : <Text style={s.completeBtnText}>Mark Workout Complete</Text>
+          }
         </TouchableOpacity>
       )}
 
+      {/* Done card — with Apple Watch data if available */}
       {alreadyComplete && (
         <View style={s.doneCard}>
           <Text style={s.doneText}>✓ Workout complete!</Text>
+          {savedWorkoutData && savedWorkoutData.caloriesBurned > 0 && (
+            <View style={s.watchStats}>
+              <WorkoutStat icon="🔥" value={`${savedWorkoutData.caloriesBurned}`} label="cal burned" />
+              <WorkoutStat icon="⏱" value={`${savedWorkoutData.duration}`} label="minutes" />
+              {savedWorkoutData.heartRate && (
+                <WorkoutStat icon="❤️" value={`${savedWorkoutData.heartRate}`} label="avg bpm" />
+              )}
+            </View>
+          )}
+          {savedWorkoutData && (
+            <Text style={s.watchSource}>
+              {savedWorkoutData.workoutType} · synced from Apple Watch
+            </Text>
+          )}
         </View>
       )}
     </ScrollView>
+  );
+}
+
+function WorkoutStat({ icon, value, label }: { icon: string; value: string; label: string }) {
+  return (
+    <View style={s.statItem}>
+      <Text style={s.statIcon}>{icon}</Text>
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -172,10 +212,17 @@ const s = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: 14, padding: 16,
     alignItems: 'center', marginTop: 8,
   },
+  btnDisabled: { opacity: 0.6 },
   completeBtnText: { color: colors.bg, fontSize: 16, fontWeight: '700' },
   doneCard: {
-    backgroundColor: '#1A1F0D', borderRadius: 14, padding: 16,
-    alignItems: 'center', borderWidth: 1, borderColor: '#2A3A10', marginTop: 8,
+    backgroundColor: '#1A1F0D', borderRadius: 14, padding: 20,
+    alignItems: 'center', borderWidth: 1, borderColor: '#2A3A10', marginTop: 8, gap: 12,
   },
   doneText: { color: colors.accent, fontSize: 16, fontWeight: '700' },
+  watchStats: { flexDirection: 'row', gap: 24, marginTop: 4 },
+  statItem: { alignItems: 'center', gap: 2 },
+  statIcon: { fontSize: 20 },
+  statValue: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  statLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  watchSource: { color: colors.muted, fontSize: 11, marginTop: 4 },
 });

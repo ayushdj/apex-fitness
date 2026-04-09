@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "APEX reads your Apple Watch workout data (calories, duration, heart rate) to log it alongside your completed workouts.",
+        "NSHealthUpdateUsageDescription": "APEX does not write to Apple Health."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +31,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-health"
     ]
   }
 }

@@ -51,9 +51,18 @@ export interface TrainingPlan {
   mealPlan?: MealPlan;
 }
 
+export interface WorkoutData {
+  caloriesBurned: number;
+  duration: number;       // minutes
+  heartRate: number | null; // average BPM, null if unavailable
+  workoutType: string;
+  startDate: string;
+}
+
 export interface PlanProgress {
   planGeneratedAt?: string;
   completedDays: string[];
+  workoutData?: Record<string, WorkoutData>;
 }
 
 export interface UserProfile {

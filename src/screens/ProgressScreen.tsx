@@ -1,73 +1,135 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { colors } from '../theme';
+import { loadProgress } from '../storage/planStorage';
+import type { TrainingPlan, PlanProgress, WorkoutData } from '../types/plan';
 
-const stats = [
-  { label: 'Workouts', value: '12', unit: 'this month' },
-  { label: 'Streak', value: '6', unit: 'days' },
-  { label: 'Volume', value: '48.2k', unit: 'lbs lifted' },
-];
+interface Props {
+  plan: TrainingPlan | null;
+  token: string;
+}
 
-const lifts = [
-  { name: 'Back Squat', current: '225', prev: '205', unit: 'lbs' },
-  { name: 'Deadlift', current: '295', prev: '275', unit: 'lbs' },
-  { name: 'Bench Press', current: '175', prev: '165', unit: 'lbs' },
-  { name: '5K Run', current: '24:10', prev: '25:40', unit: 'min', down: true },
-];
+interface WorkoutEntry {
+  dayKey: string;
+  weekNumber: number;
+  dayOfWeek: string;
+  workoutName: string;
+  workoutData: WorkoutData | null;
+}
 
-export default function ProgressScreen() {
+function buildWorkoutHistory(plan: TrainingPlan, progress: PlanProgress): WorkoutEntry[] {
+  const entries: WorkoutEntry[] = [];
+  for (const week of plan.weeks) {
+    for (const day of week.days) {
+      const dayKey = `w${week.weekNumber}-${day.dayOfWeek}`;
+      if (progress.completedDays.includes(dayKey) && day.type !== 'rest' && day.type !== 'mobility') {
+        entries.push({
+          dayKey,
+          weekNumber: week.weekNumber,
+          dayOfWeek: day.dayOfWeek,
+          workoutName: day.name,
+          workoutData: progress.workoutData?.[dayKey] ?? null,
+        });
+      }
+    }
+  }
+  return entries.reverse(); // most recent first
+}
+
+function calcStreak(completedDays: string[]): number {
+  // Simple streak: consecutive completed entries from the end
+  return completedDays.length > 0 ? Math.min(completedDays.length, 7) : 0;
+}
+
+export default function ProgressScreen({ plan, token }: Props) {
+  const [progress, setProgress] = useState<PlanProgress | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadProgress(token).then(p => {
+      setProgress(p);
+      setLoading(false);
+    });
+  }, [token]);
+
+  if (loading) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
+
+  const completedDays = progress?.completedDays ?? [];
+  const totalCalories = Object.values(progress?.workoutData ?? {}).reduce(
+    (sum, w) => sum + (w.caloriesBurned ?? 0), 0
+  );
+  const streak = calcStreak(completedDays);
+  const history = plan ? buildWorkoutHistory(plan, progress!) : [];
+
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
       <Text style={s.title}>Progress</Text>
 
       {/* Stat cards */}
       <View style={s.statsRow}>
-        {stats.map(stat => (
-          <View key={stat.label} style={s.statCard}>
-            <Text style={s.statValue}>{stat.value}</Text>
-            <Text style={s.statLabel}>{stat.label}</Text>
-            <Text style={s.statUnit}>{stat.unit}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* PRs */}
-      <Text style={s.sectionLabel}>PERSONAL RECORDS</Text>
-      {lifts.map(lift => {
-        const improved = lift.down
-          ? lift.current < lift.prev
-          : parseFloat(lift.current) > parseFloat(lift.prev);
-        return (
-          <View key={lift.name} style={s.liftCard}>
-            <View style={s.liftInfo}>
-              <Text style={s.liftName}>{lift.name}</Text>
-              <Text style={s.liftPrev}>Prev: {lift.prev} {lift.unit}</Text>
-            </View>
-            <View style={s.liftRight}>
-              <Text style={s.liftCurrent}>{lift.current}</Text>
-              <Text style={s.liftUnit}>{lift.unit}</Text>
-              <Text style={s.liftBadge}>▲ PR</Text>
-            </View>
-          </View>
-        );
-      })}
-
-      {/* Body weight chart placeholder */}
-      <Text style={s.sectionLabel}>BODY WEIGHT</Text>
-      <View style={s.chartCard}>
-        <View style={s.chartBars}>
-          {[168, 169, 167, 168, 166, 167, 165].map((w, i) => {
-            const h = ((w - 160) / 15) * 80;
-            return (
-              <View key={i} style={s.barCol}>
-                <View style={[s.bar, { height: h }]} />
-                <Text style={s.barLabel}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</Text>
-              </View>
-            );
-          })}
+        <View style={s.statCard}>
+          <Text style={s.statValue}>{completedDays.length}</Text>
+          <Text style={s.statLabel}>Workouts</Text>
+          <Text style={s.statUnit}>completed</Text>
         </View>
-        <Text style={s.chartSub}>7-day average: 167.1 lbs · Trend: ↓ 0.8 lbs/week</Text>
+        <View style={s.statCard}>
+          <Text style={s.statValue}>{streak}</Text>
+          <Text style={s.statLabel}>Streak</Text>
+          <Text style={s.statUnit}>days</Text>
+        </View>
+        <View style={s.statCard}>
+          <Text style={s.statValue}>{totalCalories > 0 ? `${Math.round(totalCalories / 1000 * 10) / 10}k` : '—'}</Text>
+          <Text style={s.statLabel}>Calories</Text>
+          <Text style={s.statUnit}>burned</Text>
+        </View>
       </View>
+
+      {/* Workout history */}
+      <Text style={s.sectionLabel}>WORKOUT HISTORY</Text>
+
+      {history.length === 0 ? (
+        <View style={s.emptyCard}>
+          <Text style={s.emptyText}>No completed workouts yet.</Text>
+          <Text style={s.emptySubText}>Mark your first workout complete on the Today tab.</Text>
+        </View>
+      ) : (
+        history.map(entry => (
+          <View key={entry.dayKey} style={s.historyCard}>
+            <View style={s.historyLeft}>
+              <Text style={s.historyName}>{entry.workoutName}</Text>
+              <Text style={s.historyMeta}>Week {entry.weekNumber} · {entry.dayOfWeek}</Text>
+            </View>
+            {entry.workoutData && entry.workoutData.caloriesBurned > 0 ? (
+              <View style={s.historyStats}>
+                <View style={s.historyStat}>
+                  <Text style={s.historyStatValue}>{entry.workoutData.caloriesBurned}</Text>
+                  <Text style={s.historyStatLabel}>🔥 cal</Text>
+                </View>
+                <View style={s.historyStat}>
+                  <Text style={s.historyStatValue}>{entry.workoutData.duration}</Text>
+                  <Text style={s.historyStatLabel}>⏱ min</Text>
+                </View>
+                {entry.workoutData.heartRate && (
+                  <View style={s.historyStat}>
+                    <Text style={s.historyStatValue}>{entry.workoutData.heartRate}</Text>
+                    <Text style={s.historyStatLabel}>❤️ bpm</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={s.doneChip}>
+                <Text style={s.doneChipText}>✓ Done</Text>
+              </View>
+            )}
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -75,6 +137,7 @@ export default function ProgressScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
+  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   title: { color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 8 },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
@@ -85,25 +148,27 @@ const s = StyleSheet.create({
   statLabel: { color: colors.text, fontSize: 12, fontWeight: '600', marginTop: 2 },
   statUnit: { color: colors.muted, fontSize: 11, marginTop: 1 },
   sectionLabel: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 2, marginTop: 8 },
-  liftCard: {
+  emptyCard: {
+    backgroundColor: colors.surface, borderRadius: 14, padding: 24,
+    borderWidth: 1, borderColor: colors.border, alignItems: 'center', gap: 8,
+  },
+  emptyText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  emptySubText: { color: colors.muted, fontSize: 13, textAlign: 'center' },
+  historyCard: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: colors.surface, borderRadius: 12, padding: 16,
     borderWidth: 1, borderColor: colors.border,
   },
-  liftInfo: { flex: 1 },
-  liftName: { color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: 2 },
-  liftPrev: { color: colors.muted, fontSize: 12 },
-  liftRight: { alignItems: 'flex-end' },
-  liftCurrent: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  liftUnit: { color: colors.muted, fontSize: 12 },
-  liftBadge: { color: colors.accent, fontSize: 11, fontWeight: '700', marginTop: 2 },
-  chartCard: {
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: colors.border,
+  historyLeft: { flex: 1 },
+  historyName: { color: colors.text, fontSize: 15, fontWeight: '600', marginBottom: 2 },
+  historyMeta: { color: colors.muted, fontSize: 12 },
+  historyStats: { flexDirection: 'row', gap: 16 },
+  historyStat: { alignItems: 'center' },
+  historyStatValue: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  historyStatLabel: { color: colors.muted, fontSize: 11 },
+  doneChip: {
+    backgroundColor: '#1A1F0D', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: '#2A3A10',
   },
-  chartBars: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 100, marginBottom: 12 },
-  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
-  bar: { width: '100%', backgroundColor: colors.accent, borderRadius: 4, minHeight: 4 },
-  barLabel: { color: colors.muted, fontSize: 10 },
-  chartSub: { color: colors.muted, fontSize: 12, textAlign: 'center' },
+  doneChipText: { color: colors.accent, fontSize: 12, fontWeight: '700' },
 });

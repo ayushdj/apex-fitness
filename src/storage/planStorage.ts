@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { TrainingPlan, PlanProgress } from '../types/plan';
+import type { TrainingPlan, PlanProgress, WorkoutData } from '../types/plan';
 import { API_URL, authHeaders } from '../config';
 
 const TOKEN_KEY = 'apex_auth_token';
@@ -46,7 +46,11 @@ export async function loadProgress(token: string): Promise<PlanProgress | null> 
   try {
     const res = await fetch(`${API_URL}/api/progress`, { headers: authHeaders(token) });
     const { progress } = await res.json();
-    return progress ? { planGeneratedAt: '', completedDays: progress.completedDays ?? [] } : null;
+    return progress ? {
+      planGeneratedAt: '',
+      completedDays: progress.completedDays ?? [],
+      workoutData: progress.workoutData ?? {},
+    } : null;
   } catch {
     return null;
   }
@@ -62,11 +66,16 @@ export async function loadCredits(token: string): Promise<{ credits: number; cre
   }
 }
 
-export async function markDayComplete(token: string, weekNumber: number, dayOfWeek: string): Promise<void> {
+export async function markDayComplete(
+  token: string,
+  weekNumber: number,
+  dayOfWeek: string,
+  workoutData?: WorkoutData,
+): Promise<void> {
   const dayKey = `w${weekNumber}-${dayOfWeek}`;
   await fetch(`${API_URL}/api/progress/complete`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ dayKey }),
+    body: JSON.stringify({ dayKey, workoutData }),
   });
 }

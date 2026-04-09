@@ -161,7 +161,7 @@ export default function App() {
         {tab === 'today'     && <TodayScreen plan={plan} token={token} />}
         {tab === 'plan'      && <PlanScreen plan={plan} token={token} onModify={handleModify} />}
         {tab === 'nutrition' && <NutritionScreen plan={plan} />}
-        {tab === 'progress'  && <ProgressScreen />}
+        {tab === 'progress'  && <ProgressScreen plan={plan} token={token} />}
         {tab === 'profile'   && <ProfileTab user={user} token={token} onSignOut={handleSignOut} />}
       </View>
       <View style={s.tabBar}>
