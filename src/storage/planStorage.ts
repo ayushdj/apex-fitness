@@ -23,9 +23,10 @@ export async function clearAuth(): Promise<void> {
 
 // ── Plan (stored in MongoDB via API) ─────────────────────────────────
 
-export async function loadPlan(token: string): Promise<TrainingPlan | null> {
+export async function loadPlan(token: string): Promise<TrainingPlan | 'unauthorized' | null> {
   try {
     const res = await fetch(`${API_URL}/api/plan`, { headers: authHeaders(token) });
+    if (res.status === 401) return 'unauthorized';
     const { plan } = await res.json();
     return plan ?? null;
   } catch {

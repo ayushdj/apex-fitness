@@ -39,10 +39,18 @@ export default function App() {
       const auth = await loadAuth();
       if (!auth) { setScreen('auth'); return; }
 
+      const existing = await loadPlan(auth.token);
+
+      if (existing === 'unauthorized') {
+        // Stale token (e.g. from a previous backend) — force re-login
+        await clearAuth();
+        setScreen('auth');
+        return;
+      }
+
       setToken(auth.token);
       setUser(auth.user);
 
-      const existing = await loadPlan(auth.token);
       if (existing) {
         setPlan(existing);
         setScreen('main');
