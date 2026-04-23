@@ -16,8 +16,13 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSHealthShareUsageDescription": "APEX reads your Apple Watch workout data (calories, duration, heart rate) to log it alongside your completed workouts.",
-        "NSHealthUpdateUsageDescription": "APEX does not write to Apple Health."
-      }
+        "NSHealthUpdateUsageDescription": "APEX does not write to Apple Health.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      },
+      "bundleIdentifier": "com.ayushdj.apexfitness"
     },
     "android": {
       "adaptiveIcon": {
@@ -33,6 +38,12 @@
     "plugins": [
       "expo-web-browser",
       "react-native-health"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b69001f6-abd1-4825-b83b-af642f05db97"
+      }
+    },
+    "owner": "ayushdj"
   }
 }
