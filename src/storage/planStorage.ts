@@ -29,7 +29,8 @@ export async function loadPlan(token: string): Promise<TrainingPlan | 'unauthori
     if (res.status === 401) return 'unauthorized';
     const { plan } = await res.json();
     return plan ?? null;
-  } catch {
+  } catch (e) {
+    console.error('[loadPlan] fetch failed:', e);
     return null;
   }
 }

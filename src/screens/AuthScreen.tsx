@@ -104,6 +104,7 @@ export default function AuthScreen({ onAuthenticated }: Props) {
       if (!res.ok) throw new Error(data.detail ?? data.error ?? 'Something went wrong');
       onAuthenticated(data.token, data.user);
     } catch (err: any) {
+      console.error('[AuthScreen] login/register failed:', err);
       setError(err.message);
     } finally {
       setLoading(false);
