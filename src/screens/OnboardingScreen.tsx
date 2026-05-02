@@ -5,7 +5,7 @@ import {
   SafeAreaView, StatusBar, ScrollView,
 } from 'react-native';
 import { colors } from '../theme';
-import { API_URL, authHeaders } from '../config';
+import { streamChat } from '../services/chatService';
 import type { UserProfile, ConversationMessage } from '../types/plan';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -221,6 +221,7 @@ function ChatOnboarding({
 
     setLoading(true);
     const newTurn = turnCount + 1;
+
     setTurnCount(newTurn);
 
     const updatedProfile = { ...profile };
@@ -233,30 +234,32 @@ function ChatOnboarding({
     const aiId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: aiId, role: 'ai', text: '' }]);
 
-    try {
-      const res = await fetch(`${API_URL}/api/chat/complete`, {
-        method: 'POST',
-        headers: authHeaders(token),
-        body: JSON.stringify({ messages: historyRef.current, userProfile: updatedProfile }),
-      });
+    let fullText = '';
 
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const { text: aiText, error } = await res.json();
-      if (error) throw new Error(error);
-
-      setMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: aiText } : m));
-      historyRef.current = [...historyRef.current, { role: 'assistant', content: aiText }];
-
-      if (newTurn >= 4) {
-        setTimeout(() => onComplete(updatedProfile, historyRef.current), 2500);
-      }
-    } catch (err: any) {
-      setMessages(prev =>
-        prev.map(m => m.id === aiId ? { ...m, text: `Error: ${err.message}` } : m)
-      );
-    } finally {
-      setLoading(false);
-    }
+    await streamChat({
+      token,
+      messages: historyRef.current,
+      userProfile: updatedProfile,
+      onToken: (chunk) => {
+        fullText += chunk;
+        setMessages(prev =>
+          prev.map(m => m.id === aiId ? { ...m, text: fullText } : m)
+        );
+      },
+      onDone: () => {
+        historyRef.current = [...historyRef.current, { role: 'assistant', content: fullText }];
+        setLoading(false);
+        if (newTurn >= 4) {
+          setTimeout(() => onComplete(updatedProfile, historyRef.current), 2500);
+        }
+      },
+      onError: (err) => {
+        setMessages(prev =>
+          prev.map(m => m.id === aiId ? { ...m, text: `Error: ${err}` } : m)
+        );
+        setLoading(false);
+      },
+    });
   };
 
   const renderMessage = ({ item }: { item: Message }) => (

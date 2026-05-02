@@ -5,7 +5,7 @@ import {
   SafeAreaView, StatusBar,
 } from 'react-native';
 import { colors } from '../theme';
-import { API_URL, authHeaders } from '../config';
+import { streamChat } from '../services/chatService';
 import type { TrainingPlan, UserProfile, ConversationMessage } from '../types/plan';
 
 interface Message {
@@ -74,45 +74,35 @@ export default function ModifyPlanScreen({
     setMessages(prev => [...prev, { id: aiId, role: 'ai', text: '' }]);
     setLoading(true);
 
-    try {
-      const res = await fetch(`${API_URL}/api/chat/complete`, {
-        method: 'POST',
-        headers: authHeaders(token),
-        body: JSON.stringify({
-          messages: historyRef.current,
-          userProfile: profileRef.current,
-          planContext,
-        }),
-      });
+    let fullText = '';
 
-      const data = await res.json();
-
-      if (res.status === 402) {
-        setMessages(prev => prev.map(m =>
-          m.id === aiId ? { ...m, text: 'You have run out of credits. Please top up to continue.' } : m
-        ));
-        return;
-      }
-
-      if (!res.ok || data.error) throw new Error(data.message ?? data.error ?? 'Server error');
-
-      const aiText: string = data.text;
-      setMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: aiText } : m));
-      historyRef.current = [...historyRef.current, { role: 'assistant', content: aiText }];
-      setExchangeCount(c => c + 1);
-
-      // Extract any schedule/goal changes the user mentioned
-      profileRef.current = {
-        ...profileRef.current,
-        modifications: userText,
-      };
-    } catch (err: any) {
-      setMessages(prev => prev.map(m =>
-        m.id === aiId ? { ...m, text: `Error: ${err.message}` } : m
-      ));
-    } finally {
-      setLoading(false);
-    }
+    await streamChat({
+      token,
+      messages: historyRef.current,
+      userProfile: profileRef.current,
+      planContext,
+      onToken: (chunk) => {
+        fullText += chunk;
+        setMessages(prev =>
+          prev.map(m => m.id === aiId ? { ...m, text: fullText } : m)
+        );
+      },
+      onDone: () => {
+        historyRef.current = [...historyRef.current, { role: 'assistant', content: fullText }];
+        profileRef.current = { ...profileRef.current, modifications: userText };
+        setExchangeCount(c => c + 1);
+        setLoading(false);
+      },
+      onError: (err) => {
+        const msg = err === 'out_of_credits'
+          ? 'You have run out of credits. Please top up to continue.'
+          : `Error: ${err}`;
+        setMessages(prev =>
+          prev.map(m => m.id === aiId ? { ...m, text: msg } : m)
+        );
+        setLoading(false);
+      },
+    });
   };
 
   const handleUpdate = () => {
